@@ -5,14 +5,14 @@ import random
 from scipy.sparse import load_npz
 
 class DepthDataset(Dataset):
-    def __init__(self, partition='train', outputs=['depth','feature_map','edge_label','edge_index'], 
+    def __init__(self, partition='train', outputs=['depth','feature_map_orig','edge_label','edge_index'], 
                  models=[], shuffle_pixels=False, pc_mean=None, repeat=1, preload=False):
         
         super().__init__()
         
         self.pc_mean = pc_mean
         self.outputs = outputs
-        self.dir = 'C:/Users/Gastón/Desktop/Gaston/CONICET/repos/dgcnn_emma/data/data_2k_edgelabels_fmap_5models_d15'
+        self.dir = 'C:/Users/Gastón/Desktop/Gaston/CONICET/repos/dgcnn_emma/data/data_2k_edgelabels_fmap_orig_1model_d15'
         # self.dir = '/media/gaston/Windows-SSD/Users/Gastón/Desktop/Gaston/CONICET/repos/dgcnn_emma/data'
         
         if partition == 'train':
@@ -55,14 +55,6 @@ class DepthDataset(Dataset):
     def __getitem__(self, item):
         data = self.data[item] if self.preload else self._load_file(item)
         pixels = data['pixels']
-        if 'depth' in self.outputs:
-            depth = data['depth']
-        if 'feature_map' in self.outputs:
-            feature_map = data['feature_map']
-        if 'edge_label' in self.outputs:
-            edge_label = data['edge_label_NxK'].astype(np.int64)
-        if 'edge_index' in self.outputs:
-            edge_index = data['edge_index'].astype(np.int64)
         
         # Unison shuffle
         if self.shuffle_pixels:
@@ -70,16 +62,24 @@ class DepthDataset(Dataset):
             pixels = pixels[:,shuffler]
         output = [pixels]
         if 'depth' in self.outputs:
+            depth = data['depth']
             if self.shuffle_pixels:
                 depth = depth[shuffler]
             if self.pc_mean != None:
                 depth += self.pc_mean - depth.mean()
             output.append(depth)
         if 'feature_map' in self.outputs:
+            feature_map = data['feature_map']
             if self.shuffle_pixels:
                 feature_map = feature_map[:,shuffler,:]
             output.append(feature_map)
+        if 'feature_map_orig' in self.outputs:
+            feature_map_orig = data['feature_map_orig']
+            if self.shuffle_pixels:
+                feature_map_orig = feature_map_orig[:,shuffler,:]
+            output.append(feature_map_orig)
         if 'edge_label' in self.outputs:
+            edge_label = data['edge_label_NxK'].astype(np.int64)
             if self.shuffle_pixels:
                 
                 
@@ -91,6 +91,7 @@ class DepthDataset(Dataset):
                 
             output.append(edge_label)
         if 'edge_index' in self.outputs:
+            edge_index = data['edge_index'].astype(np.int64)
             if self.shuffle_pixels:
                 
                 
@@ -110,6 +111,12 @@ class DepthDataset(Dataset):
     def denormalize(self, pixels):
         pixels = (pixels + 1) * self.im_shape / 2
         return pixels.astype(np.int32)
+    
+    def apply_edge_mask(self, feature_map, edge_label):
+        dims = feature_map.shape[0] // 2
+        x0 = feature_map[:dims,:,:]*np.repeat(np.logical_not(edge_label[np.newaxis,:,:]), dims, axis=0)
+        x1 = feature_map[dims:,:,:]
+        return np.concatenate((x0,x1), axis=0)
 
 class DepthDatasetFm(Dataset):
     def __init__(self, partition='train', models=[], num_points=None, pc_mean=None, repeat=1):

@@ -21,7 +21,7 @@ def intrinsic_from_fov(height, width, fov=90):
                       [0., 0., 1., 0.],
                       [0., 0., 0., 1.]])
 
-def plot_3d_pointcloud(pixels, depth, img_shape, point_size=0.1, zNear=0.85, zFar=4.0, fov_deg=49.1):
+def plot_3d_pointcloud(pixels, depth, img_shape, edges=None, point_size=0.1, zNear=0.85, zFar=4.0, fov_deg=49.1):
 
     indices = torch.tensor(pixels.T, dtype=torch.int64)
     z_3d = torch.tensor(depth)
@@ -46,4 +46,7 @@ def plot_3d_pointcloud(pixels, depth, img_shape, point_size=0.1, zNear=0.85, zFa
             cam_coords.append([y.item(), x.item(), z.item()])
     cam_coords_tensor = torch.FloatTensor(cam_coords)
 
-    mp.plot(cam_coords_tensor.numpy(), c=depth.numpy(), shading={"point_size": point_size,"colormap": "plasma_r"})
+    if edges is not None:
+        mp.plot(cam_coords_tensor.numpy(), edges, c=depth.numpy(), shading={"point_size": point_size,"colormap": "plasma_r", "line_color": "red"})
+    else:
+        mp.plot(cam_coords_tensor.numpy(), c=depth.numpy(), shading={"point_size": point_size,"colormap": "plasma_r"})
